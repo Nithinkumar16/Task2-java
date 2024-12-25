@@ -1,0 +1,80 @@
+import javafx.application.Application;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.scene.layout.*;
+import javafx.stage.Stage;
+import java.sql.*;
+
+public class ExpenseTrackerApp extends Application {
+
+    private Connection connect() {
+        String url = "jdbc:sqlite:expenses.db";
+        Connection conn = null;
+        try {
+            conn = DriverManager.getConnection(url);
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        }
+        return conn;
+    }
+
+    private void createDatabase() {
+        String sql = "CREATE TABLE IF NOT EXISTS expenses (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        amount REAL NOT NULL,
+                        category TEXT NOT NULL,
+                        date TEXT NOT NULL,
+                        notes TEXT
+                    );";
+        try (Connection conn = connect(); Statement stmt = conn.createStatement()) {
+            stmt.execute(sql);
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        }
+    }
+
+    @Override
+    public void start(Stage primaryStage) {
+        createDatabase();
+
+        // UI Components
+        TextField amountField = new TextField();
+        ComboBox<String> categoryBox = new ComboBox<>();
+        categoryBox.getItems().addAll("Food", "Transportation", "Entertainment", "Other");
+        DatePicker datePicker = new DatePicker();
+        TextField notesField = new TextField();
+        Button addButton = new Button("Add Expense");
+
+        TableView<String> table = new TableView<>();
+
+        addButton.setOnAction(e -> {
+            String amount = amountField.getText();
+            String category = categoryBox.getValue();
+            String date = datePicker.getValue().toString();
+            String notes = notesField.getText();
+
+            String sql = "INSERT INTO expenses(amount, category, date, notes) VALUES(?, ?, ?, ?)";
+
+            try (Connection conn = connect(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                pstmt.setDouble(1, Double.parseDouble(amount));
+                pstmt.setString(2, category);
+                pstmt.setString(3, date);
+                pstmt.setString(4, notes);
+                pstmt.executeUpdate();
+            } catch (SQLException ex) {
+                System.out.println(ex.getMessage());
+            }
+        });
+
+        VBox layout = new VBox(10, amountField, categoryBox, datePicker, notesField, addButton, table);
+        Scene scene = new Scene(layout, 800, 600);
+
+        primaryStage.setScene(scene);
+        primaryStage.setTitle("Expense Tracker");
+        primaryStage.show();
+    }
+
+    public static void main(String[] args) {
+        launch(args);
+    }
+}
